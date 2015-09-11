@@ -59,8 +59,8 @@ class DigitsServerClassification(object):
 
         return results
 
-    def get_top_label(self,list_of_image_paths):
-        all_predictions=self.classify_images(list_of_image_paths)
+    def get_top_label(self,list_of_image_paths,batch_size=15):
+        all_predictions=self.classify_images(list_of_image_paths,batch_size)
         p_map=[]
 
         for image,predictions in all_predictions.items():
