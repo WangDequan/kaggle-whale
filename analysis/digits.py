@@ -12,41 +12,48 @@ class DigitsServerClassification(object):
         self.job_id = job_id
 
 
-    def classify_images(self,list_of_image_paths):
+
+
+    def _classify_batch(self,list_of_image_paths,results):
+        output = StringIO.StringIO()
+        for item in list_of_image_paths:
+            output.write(item+'\n')
+        output.seek(0)
+
+        files = {'image_list': output}
+
+        api_url=self.server_url+'/models/images/classification/classify_many.json'
+        payload = {'job_id':self.job_id}
+        r=requests.post(api_url,data=payload,files=files)
+
+        classified = json.loads(r.content)['classifications']
+
+
+        for (key,value) in classified.items():#every image
+            labels=value
+            file_name= key.split('/')[-1]
+
+            img_result={}
+
+            for item in labels:
+                key,value= item[0],float(item[1])
+                img_result[key]=value
+            results[file_name]=img_result #save top classification
+
+
+    def classify_images(self,list_of_image_paths,batch_size=15):
         #filename='/home/jshoun01/Data/metis/kaggle_whale/data/imgs_subset/w_164.jpg'
 
 
         results={}
-        output = StringIO.StringIO()
 
-        chunks=[list_of_image_paths[x:x+5] for x in xrange(0, len(list_of_image_paths), 5)]
+
+        chunks=[list_of_image_paths[x:x+batch_size] for x in xrange(0, len(list_of_image_paths), batch_size)]
         #get all images
         num_chunks=len(chunks)
         for chunk_id,chunk in enumerate(chunks):
-            for item in chunk:
-                output.write(item+'\n')
-            output.seek(0)
 
-            files = {'image_list': output}
-
-            api_url=self.server_url+'/models/images/classification/classify_many.json'
-            payload = {'job_id':self.job_id}
-            r=requests.post(api_url,data=payload,files=files)
-
-            classified = json.loads(r.content)['classifications']
-
-
-            for (key,value) in classified.items():#every image
-                labels=value
-                file_name= key.split('/')[-1]
-
-                img_result={}
-
-                for item in labels:
-                    key,value= item[0],float(item[1])
-                    img_result[key]=value
-                results[file_name]=img_result #save top classification
-
+            self._classify_batch(chunk,results)
             print ("Chunk %s of %s"%(chunk_id+1,num_chunks))
 
 
@@ -107,4 +114,4 @@ class DigitsFileCreator(object):
         print labeled_file
         print train_file
         print validation_file
-        #return train_split,validation_split
+        return train_split,validation_split,labels_dict
